@@ -1,166 +1,240 @@
-**** 
+### Ex. No. :7
 
 
-### Ex. No. :8 CONFIGURING ANALOG PORT TO INTEFACE AN ANALOG SENSOR AND READ THE VALUES USING SERIAL PORT
-## Date: 
-###  
+### Interfacing LM35 Temperature sensor and calculate the sensitivity of the output
 
-## Aim: 
-To configure ADC channel for interfacing an analog sensor and read the values on the com port 
+## Aim:
+
+To configure internal ADC for LPC2148 ARM 7 for interfacing LM35 temperature sensor.
+
 ## Components required:
-STM 32 CUBE IDE , STM32 NUCLEO BOARD, CONNECTING CABLE, SERIAL PORT UTILITY , ANALOG SENSOR - 3.3V TYPE 
- ## Theory 
 
- 
-ADCs are characterized by:
+Proteus ISIS professional suite, Kiel μ vision 5 Development environment
+![image](https://user-images.githubusercontent.com/36288975/200110365-9e1f8a55-c943-43f1-94de-60003f6308b7.png)
 
-Resolution [bit]: the number of bits to represent a digital signal.
-Sampling rate [Hz]: how fast they work.
+Figure-01 ADC pins in LPC2148 ARM 7 controller
 
-ADC Symbol. 
-An 10-bit ADC with 1 kHz sampling rate has 256 (2⁸) levels in its digital signal and takes 1 millisecond to convert an analog signal into its digital form.
-![image](https://github.com/vasanthkumarch/Ex.-No.8-CONFIGURING-ANALOG-PORT-TO-INTEFACE-AN-ANALOG-SENSOR-AND-READ-THE-VALUES-USING-SERIAL-PORT/assets/36288975/bdbe1fe6-6913-46ca-aefd-726b6a406cf6)
+## Theory
 
-An analog signal is expressed in voltage [V] and other important features are:
+Analog to Digital Converter (ADC) is used to convert analog signal into digital form. LPC2148 has two inbuilt 10-bit ADC i.e. ADC0 & ADC1.
+• ADC0 has 6 channels &ADC1 has 8 channels.
+• Hence, we can connect 6 distinct types of input analog signals to ADC0 and 8 distinct types of input analog signals to ADC1.
+• ADCs in LPC2148 use Successive Approximation technique to convert analog signal into digital form.
+• This Successive Approximation process requires a clock less than or equal to 4.5 MHz. We can adjust this clock using clock divider settings.
+• Both ADCs in LCP2148 convert analog signals in the range of 0V to VREF (typically 3V; not to exceed VDDA voltage level).
+AD0.1:4, AD0.6:7 & AD1.7:0 (Analog Inputs)
+These are Analog input pins of ADC. If ADC is used, signal level on analog pins must not be above the level of VDDA; otherwise, ADC readings will be invalid. If ADC is not used, then the pins can be used as 5V tolerant digital I/O pins.
+VREF (Voltage Reference)
+Provide Voltage Reference for ADC.
+VDDA& VSSA (Analog Power and Ground)
+These are the power and ground pins for ADC. These should be same as VDD & VSS.
 
-Full-scale voltage: the maximum input voltage value convertible into digital.
-Voltage resolution (Quantum): equal to its full-scale voltage divided by the number of levels.
-An 8-bit ADC with 3.3V of full-scale voltage has a quantum equal to: 3.3V / 256 levels = 12.9mV.
-The quantum is the minimum voltage value that ADC can discretize. When an analog value being sampled falls between two digital levels the analog signal will be represented by the nearest digital value. This causes a very slight error called “quantization error”.
+Let’s see the ADC registers which are used to control and monitors the ADC operation.
+Here, we will see ADC0 registers and their configurations. ADC1 has similar registers and can be configured in a similar manner.
 
-Different Ways To Read STM32 ADC   
- 
+ADC0 Registers
 
-1 – The Polling Method
+1.  AD0CR (ADC0 Control Register)
+    • AD0CR is a 32-bit register.
+    • This register must be written to select the operating mode before A/D conversion can occur.
+    • It is used for selecting channel of ADC, clock frequency for ADC, number of clocks or number of bits in result, start of conversion and few other parameters.
 
-It’s the easiest way in code in order to perform an analog to digital conversion using the ADC on an analog input channel. However, it’s not an efficient way in all cases as it’s considered to be a blocking way of using the ADC. As in this way, we start the A/D conversion and wait for the ADC until it completes the conversion so the CPU can resume processing the main code.
+![image](https://user-images.githubusercontent.com/36288975/200110376-4ff1ebad-b324-4b8f-8797-ea834763ace4.png)
+Figure-02 AD0CR (ADC0 Control Register)
+• Bits 7:0 – SEL
+These bits select ADC0 channel as analog input. In software-controlled mode, only one of these bits should be 1.e.g. bit 7 (10000000) selects AD0.7 channel as analog input.
+• Bits 15:8 – CLKDIV
+The APB(ARM Peripheral Bus)clock is divided by this value plus one, to produce the clock for ADC.
+This clock should be less than or equal to 4.5MHz.
+• Bit 16 – BURST
+0 = Conversions are software controlled and require 11 clocks
+1 = In Burst mode ADC does repeated conversions at the rate selected by the CLKS field for the analog inputs selected by SEL field. It can be terminated by clearing this bit, but the conversion that is in progress will be completed.
+When Burst = 1, the START bits must be 000, otherwise the conversions will not start.
+• Bits 19:17 – CLKS
+Selects the number of clocks used for each conversion in burst mode and the number of bits of accuracy of Result bits of AD0DR.
+e.g. 000 uses 11 clocks for each conversion and provide 10 bits of result in corresponding ADDR register.
+000 = 11 clocks / 10 bits
+001 = 10 clocks / 9 bits
+010 = 9 clocks / 8 bits
+011 = 8 clocks / 7 bits
+100 = 7 clocks / 6 bits
+101 = 6 clocks / 5 bits
+110 = 5 clocks / 4 bits
+111 = 4 clocks / 3 bits
+• Bit 20 – RESERVED
+• Bit 21 – PDN
+0 = ADC is in Power Down mode
+1 = ADC is operational
+• Bit 23:22 – RESERVED
+• Bit 26:24 – START
+When BURST bit is 0, these bits control whether and when A/D conversion is started
+000 = No start (Should be used when clearing PDN to 0)
+001 = Start conversion now
+010 = Start conversion when edge selected by bit 27 of this register occurs on CAP0.2/MAT0.2 pin
+011= Start conversion when edge selected by bit 27 of this register occurs on CAP0.0/MAT0.0 pin
+100 = Start conversion when edge selected by bit 27 of this register occurs on MAT0.1 pin
+101 = Start conversion when edge selected by bit 27 of this register occurs on MAT0.3 pin
+110 = Start conversion when edge selected by bit 27 of this register occurs on MAT1.0 pin
+111 = Start conversion when edge selected by bit 27 of this register occurs on MAT1.1 pin
+• Bit 27 – EDGE
+This bit is significant only when the Start field contains 010-111. In these cases,
+0 = Start conversion on a rising edge on the selected CAP/MAT signal
+1 = Start conversion on a falling edge on the selected CAP/MAT signal
+• Bit 31:28 – RESERVED 2. AD0GDR (ADC0 Global Data Register)
+• AD0GDR is a 32-bit register.
+• This register contains the ADC’s DONE bit and the result of the most recent A/D conversion.
+![image](https://user-images.githubusercontent.com/36288975/200110379-2aead4f2-392c-491d-9ec8-1c6b33e4ab1a.png)
 
-2 – The Interrupt Method
+Figure-03 AD0GDR (ADC0 Global Data Register)
+• Bit 5:0 – RESERVED
+• Bits 15:6 – RESULT
+When DONE bit is set to 1, this field contains 10-bit ADC result that has a value in the range of 0 (less than or equal to VSSA) to 1023 (greater than or equal to VREF).
+• Bit 23:16 – RESERVED
+• Bits 26:24 – CHN
+These bits contain the channel from which ADC value is read.
+e.g. 000 identifies that the RESULT field contains ADC value of channel 0.
+• Bit 29:27 – RESERVED
+• Bit 30 – Overrun
+This bit is set to 1 in burst mode if the result of one or more conversions is lost and overwritten before the conversion that produced the result in the RESULT bits.
+This bit is cleared by reading this register.
+• Bit 31 – DONE
+This bit is set to 1 when an A/D conversion completes. It is cleared when this register is read and when the AD0CR is written.
+If AD0CR is written while a conversion is still in progress, this bit is set and new conversion is started.
 
-The interrupt method is an efficient way to do ADC conversion in a non-blocking manner, so the CPU can resume executing the main code routine until the ADC completes the conversion and fires an interrupt signal so the CPU can switch to the ISR context and save the conversion results for further processing.
+3.  ADGSR (A/D Global Start Register)
+    • ADGSR is a 32-bit register.
+    • Software can write to this register to simultaneously start conversions on both ADC.
+    ![image](https://user-images.githubusercontent.com/36288975/200110382-0d5ab0b1-4220-45e0-b87b-aa8351086222.png)
 
-However, when you’re dealing with multiple channels in a circular mode or so, you’ll have periodic interrupts from the ADC that are too much for the CPU to handle. This will introduce jitter injection and interrupt latency and all sorts of timing issues to the system. This can be avoided by using DMA.
+Figure-04 ADGSR (A/D Global Start Register)
+• BURST (Bit 16), START (Bit <26:24>) & EDGE (Bit 27)
+These bits have same function as in the individual ADC control registers i.e. AD0CR & AD1CR. Only difference is that we can use these function for both ADC commonly from this register.
 
-3 – The DMA Method
+4.  AD0STAT (ADC0 Status Register)
+    • AD0STAT is a 32-bit register.
+    • It allows checking of status of all the A/D channels simultaneously.
+    ![image](https://user-images.githubusercontent.com/36288975/200110390-7eb46ad2-5aed-4a5e-8512-f9791e064728.png)
 
-Lastly, the DMA method is the most efficient way of converting multiple ADC channels at very high rates and still transfers the results to the memory without CPU intervention which is so cool and time-saving technique.
+Figure-05 AD0STAT (ADC0 Status Register)
+• Bit 7:0 – DONE7:DONE0
+These bits reflect the DONE status flag from the result registers for A/D channel 7 - channel 0.
+• Bit 15:8 – OVERRUN7:OVERRUN0
+These bits reflect the OVERRUN status flag from the result registers for A/D channel 7 - channel 0.
+• Bit 16 – ADINT
+This bit is 1 when any of the individual A/D channel DONE flags is asserted and enables ADC interrupt if any of interrupt is enabled in AD0INTEN register.
+• Bit 31:17 – RESERVED
 
- 
+5.  AD0INTEN (ADC0 Interrupt Enable)
+    • AD0INTEN is a 32-bit register.
+    • It allows control over which channels generate an interrupt when conversion is completed.
 
-The STM32 Nucleo Board
-The STM32 development board in use belongs to the NUCLEO family: the NUCLEO-G431RB is equipped with an STM32G431RB microcontroller, led, buttons, and connectors (Arduino shield compatible). It provides an easy and fast way to build prototypes.
+![image](https://user-images.githubusercontent.com/36288975/200110394-8660725a-083b-43aa-9fb9-b92cb8b7c53d.png)
 
+Figure-06 AD0INTEN (ADC0 Interrupt Enable)
+• Bit 0 – ADINTEN0
+0 = Completion of a A/D conversion on ADC channel 0 will not generate an interrupt
+1 = Completion of a conversion on ADC channel 0 will generate an interrupt
+• Remaining ADINTEN bits have similar description as given for ADINTEN0.
+• Bit 8 – ADGINTEN
+0 = Only the individual ADC channels enabled by ADINTEN7:0 will generate interrupts
+1 = Only the global DONE flag in A/D Data Register is enabled to generate an interrupt
 
-STM32 NUCLEO-G431RB development board.  
-The STM32G071RB is a mainstream ARM Cortex-M4 microcontroller with 128KB flash memory, most common communication interfaces (I2C, SPI, UART, …), and peripherals (ADC, DAC, PWM, Timer, …).
+6.  AD0DR0-AD0DR7 (ADC0 Data Registers)
+    • These are 32-bit registers.
+    • They hold the result when A/D conversion is completed.
+    • They also include flags that indicate when a conversion has been completed and when a conversion overrun has occurred.
+    ![image](https://user-images.githubusercontent.com/36288975/200110398-289fff28-16a8-4b5a-a691-d43f8a746acc.png)
 
+Figure-07 AD0 Data Registers Structure
+• Bit 5:0 – RESERVED
+• Bits 15:6 – RESULT
+When DONE bit is set to 1, this field contains 10-bit ADC result that has a value in the range of 0 (less than or equal to VSSA) to 1023 (greater than or equal to VREF).
+• Bit 29:16 – RESERVED
+• Bit 30 – Overrun
+This bit is set to 1 in burst mode if the result of one or more conversions is lost and overwritten before the conversion that produced the result in the RESULT bits.
+This bit is cleared by reading this register.
+• Bit 31 – DONE
+This bit is set to 1 when an A/D conversion completes. It is cleared when this register is read.
 
-SOIL MOISTURE SENSOR 
-Calculations
-Capacity is calculated using the following expression:
+Procedure:
+Steps for Analog to Digital Conversion
 
+1. Configure the ADxCR (ADC Control Register) according to the need of application.
+2. Start ADC conversion by writing appropriate value to START bits in ADxCR. (Example, writing 001 to START bits of the register 26:24, conversion is started immediately).
+3. Monitor the DONE bit (bit number 31) of the corresponding ADxDRy (ADC Data Register) till it changes from 0 to 1. This signals completion of conversion. We can also monitor DONE bit of ADGSR or the DONE bit corresponding to the ADC channel in the ADCxSTAT register.
+4. Read the ADC result from the corresponding ADC Data Register.
+   ADxDRy. E.g. AD0DR1 contains ADC result of channel 1 of ADC0.
 
+LM35 :
+• LM35 is a temperature measuring device having an analog output voltage proportional to the temperature.
+• It provides output voltage in Centigrade (Celsius). It does not require any external calibration circuitry.
+• The sensitivity of LM35 is 10 mV/degree Celsius. As temperature increases, output voltage also increases.
+E.g. 250 mV means 25°C.
+• It is a 3-terminal sensor used to measure surrounding temperature ranging from -55 °C to 150 °C.
+• LM35 gives temperature output which is more precise than thermistor output.
+![image](https://user-images.githubusercontent.com/36288975/200110411-f6488eeb-39e9-4876-b5c5-c1ebba612137.png)
 
-Let the plates have dimensions  w  = 12 mm; l  = 35 mm, then the area S  = 12*35 = 420 mm², and the distance between them d  = 3 mm, then the calculated electrical capacitance C =  1 pF .
+Features of LM35
+Calibrated Directly in Celsius (Centigrade)
+Linear + 10-mV/°C Scale Factor
+0.5°C Ensured Accuracy (at 25°C)
+Rated for Full −55°C to 150°C Range
+Suitable for Remote Applications
+Low-Cost Due to Wafer-Level Trimming
+Operates From 4 V to 30 V
+Less Than 60-μA Current Drain
+Low Self-Heating, 0.08°C in Still Air
+Non-Linearity Only ±¼°C Typical
+Low-Impedance Output, 0.1 Ω for 1-mA Load
 
-Capacitance calculation (dielectric: air)
-The geometric dimensions (area) S , as well as the distance between the plates d , do not change. To change the capacitance, it remains to change the substance between the plates, as long as it is air ε = 1 . What do you think? relative dielectric constant  of water ? Sources show ε = 81 .
+![image](https://user-images.githubusercontent.com/36288975/200110416-9cd78fa3-d1d3-45b5-a2e7-0f304bb32cd6.png)
 
-Capacitance calculation (dielectric: water)
-Full immersion in water will increase the capacity by 81 times ! The calculated capacitance C will no longer be 1 pF, but  100 pF .
+Figure -08 Circuit diagram of interfacing an LM35 with ADC input pin
 
+## Kiel - Program
 
+```
+#include<lpc214x.h>
+#include "LCD.h"
+#include "ADC.h"
+int main()
+{
+	IO1DIR=0xffffffff;
+	IO0DIR=0x00000000;
+	PINSEL0=0x0300;
+	VPBDIV=0x02;
+	lcd_init();
+	show(" ADC Value: ");
+	while(1){
+		cmd(0x8b);
+		val=adc(0,6);
+		dat((val/1000)+48);
+		dat(((val/100)%10)+48);
+		dat(((val/10)%10)+48);
+		dat((val%10)+48);
+	}
+}
+```
 
-Thus, by smoothly immersing this homemade condenser, the capacity will also smoothly and proportionally change, which makes it possible to effectively monitor the state of humidity.
+## Tabulations and graph
 
-Converting a change in capacitance into a change in voltage
-By connecting a capacitor in series with a resistor, we obtain a low-pass filter ( LPF ).
+Calculation of sensitivity
+% of sensitivity is S= (T2-T1)/(A2-A1)\*100
 
+![](tab.png);
 
+![](graph.png)
+Figure -09 graph between temperature values and ADC output
 
-This results in a voltage divider where the resistance of the upper arm R1 does not change, but the capacitance of the lower arm C1 changes depending on the frequency.
+## Output screen shots :
 
+![](disoff.png)
+![](dison.png)
 
+## Layout:
 
-But since the signal frequency will remain unchanged, we will plot the dependence of capacitance on capacitance ( C = 1-100 pF):
-  
-
-  
- ## Procedure:
-
-Open STM32CubeIDE Software and go to File → New… → STM32 Project.
-Click on Board Selector and select NUCLEO-G431RB in the dropdown menu.
-
-Board selector section. Image by author.
-Insert a project name and select STM32Cube as Targeted Project Type.
-
-Setup STM32 project. Image by author.
-After creating the project, a page will appear showing all the necessary features needed to configure the MCU.
-
-STM32Cube device configuration. 
-The STM32G071RB has 2 ADCs (named ADC1 and ADC2) with a maximum sampling rate of 4MHz (0.25us) and up to 19 multiplexed channels. Resolution of 12-bit with a full-scale voltage range of up to 3.6V.
-With channels, it is possible to organize the conversions in a group. A group consists of a sequence of conversions that can be done on any channel and in any order, also with different sampling rates.
-
-The Analog connector of the development board is connected to pins: PA0, PA1, PA4, PB0, PC1, and PC0 of the microcontroller.
-![image](https://github.com/vasanthkumarch/Ex.-No.8-CONFIGURING-ANALOG-PORT-TO-INTEFACE-AN-ANALOG-SENSOR-AND-READ-THE-VALUES-USING-SERIAL-PORT/assets/36288975/152f51fd-f09b-4d65-8744-9492c86f1720)
-
-Pinout of the analog connector — NUCLEO-G071RB. .
-The potentiometer is wired to the PA0 pin and so the ADC1 Channel 0 (ADC1_IN0) will be used to convert the analog value.
-
-Open the Pinout&Configuration tab and click on Analog → ADC1 in the Categories section.
-In the channel 1 (IN0) dropdown menu select Single-ended.
-The ADC can be configured to measure the voltage difference between one pin and the ground (Single-ended configuration) or between two pins (Differential configuration).
-![image](https://github.com/vasanthkumarch/Ex.-No.8-CONFIGURING-ANALOG-PORT-TO-INTEFACE-AN-ANALOG-SENSOR-AND-READ-THE-VALUES-USING-SERIAL-PORT/assets/36288975/84e5114c-ff8b-4058-8ad7-760bcf06f931)
-
-ADC1 mode panel.  
-Leave the ADC1 Configuration panel with the default values and save the project.
-* Clock prescaler: Synchronous clock mode divided by 4
-ADC Clock derives from the system clock (SYCLK) that is set to the maximum frequency: 170MHz.
-Divide by 4 means to set the maximum ADC sampling frequency (170MHz/4 = 42.5MHz).
-* Resolution: ADC 10-bit resolution
-Output digital signal has 1024 levels. The voltage full-scale range is equal to the microcontroller supply voltage (3.3V).
-
-ADC1 configuration panel.  .
-After saving the configuration, the STM32CubeIDE will generate all the project files according to the user inputs.
-
-The soil moisture sensor is one kind of sensor used to gauge the volumetric content of water within the soil. As the straight gravimetric dimension of soil moisture needs eliminating, drying, as well as sample weighting. These sensors measure the volumetric water content not directly with the help of some other rules of soil like dielectric constant, electrical resistance, otherwise interaction with neutrons, and replacement of the moisture content.
-
-The relation among the calculated property as well as moisture of soil should be adjusted & may change based on ecological factors like temperature, type of soil, otherwise electric conductivity. The microwave emission which is reflected can be influenced by the moisture of soil as well as mainly used in agriculture and remote sensing within hydrology.
-
-
-soil-moisture-sensor-device
-soil-moisture-sensor-device
-These sensors normally used to check volumetric water content, and another group of sensors calculates a new property of moisture within soils named water potential. Generally, these sensors are named as soil water potential sensors which include gypsum blocks and tensiometer.
-
-Soil Moisture Sensor Pin Configuration
-The FC-28 soil moisture sensor includes 4-pins
-![image](https://github.com/vasanthkumarch/Ex.-No.8-CONFIGURING-ANALOG-PORT-TO-INTEFACE-AN-ANALOG-SENSOR-AND-READ-THE-VALUES-USING-SERIAL-PORT/assets/36288975/14ce9ba1-6f2e-4080-adee-bfb695123d34)
-
-soil-moisture-sensor
-soil-moisture-sensor
-
-
-![image](https://github.com/vasanthkumarch/Ex.-No.8-CONFIGURING-ANALOG-PORT-TO-INTEFACE-AN-ANALOG-SENSOR-AND-READ-THE-VALUES-USING-SERIAL-PORT/assets/36288975/7ae64062-717c-4b18-b5c8-3664f229d2d5)
-
-VCC pin is used for power
-A0 pin is an analog output
-D0 pin is a digital output
-GND pin is a Ground
-This module also includes a potentiometer that will fix the threshold value, & the value can be evaluated by the comparator-LM393. The LED will turn on/off based on the threshold value.
-
-
-##  Program 
-
-
- 
+![](lay.png)
 
 ## Result :
- 
-## Output  :
 
-
-
-
-
-
-****
+Temperature sensor LM35 is interfaced to LPC2148 and its output is measured
